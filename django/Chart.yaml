@@ -23,8 +23,8 @@ version: 0.1.0
 # It is recommended to use it with quotes.
 appVersion: "1.16.0"
 
-dependencies:
-  - name: "redis"
-    condition: redis.enabled
-    version: ^16
-    repository: "https://charts.bitnami.com/bitnami"
+#dependencies:
+#  - name: "redis"
+#    condition: redis.enabled
+#    version: ^16
+#    repository: "https://charts.bitnami.com/bitnami"

@@ -29,8 +29,8 @@ spec:
       serviceAccountName: {{ include "django.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{ if .Values.collect_static.enabled }}
       initContainers:
+        {{- if .Values.collect_static.enabled }}
         - name: {{ .Values.collect_static.name | quote }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: IfNotPresent
@@ -53,21 +53,37 @@ spec:
           volumeMounts:
             - name: shared
               mountPath: {{ .Values.data.staticfiles }}
-      {{- end }}
+        {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: IfNotPresent
-          {{-  with .Values.command }}
           command: ["/bin/sh"]
           args:
               - -c
               - >-
-                  {{ . }}
-          {{- end }}
-          {{- include "django.envVariables" . | nindent 10 }}
+                  {{ .Values.command }}
+          env:
+            - name: CELERY_BROKER_URL
+              value: "{{ .Values.envConfigs.CELERY_BROKER_URL }}"
+            - name: DATABASE_URL
+              value: "{{ .Values.envConfigs.DATABASE_URL }}"
+            - name: RABBITMQ_URL
+              value: "{{ .Values.envConfigs.RABBITMQ_URL }}"
+            - name: AWS_SECRETS_MANAGER_KEY_ID
+              value: "{{ .Values.envConfigs.AWS_SECRETS_MANAGER_KEY_ID }}"
+            - name: AWS_SECRETS_MANAGER_SECRET_KEY
+              value: "{{ .Values.envConfigs.AWS_SECRETS_MANAGER_SECRET_KEY }}"
+            - name: AWS_SECRETS_MANAGER_REGION_NAME
+              value: "{{ .Values.envConfigs.AWS_SECRETS_MANAGER_REGION_NAME }}"
+            - name: DJANGO_SUPERUSER_USERNAME
+              value: "{{ .Values.envConfigs.DJANGO_SUPERUSER_USERNAME }}"
+            - name: DJANGO_SUPERUSER_PASSWORD
+              value: "{{ .Values.envConfigs.DJANGO_SUPERUSER_PASSWORD }}"
+            - name: DJANGO_SUPERUSER_EMAIL
+              value: "{{ .Values.envConfigs.DJANGO_SUPERUSER_EMAIL }}"
           ports:
             - containerPort: {{ .Values.image.containerPort }}
               protocol: TCP
@@ -87,14 +103,12 @@ spec:
         {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-
         - name: {{ printf "%s-%s" .Chart.Name "proxy" }}
           image:  "{{ .Values.proxy.repository }}:{{ .Values.image.tag }}"
           ports:
             - name: http
               containerPort: {{ .Values.proxy.containerPort }}
               protocol: TCP
-              
           volumeMounts:
             - name: caddy-config
               mountPath: /etc/caddy/Caddyfile
@@ -109,7 +123,6 @@ spec:
             name: caddy-config
         - name: shared
           emptyDir: {}
-
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

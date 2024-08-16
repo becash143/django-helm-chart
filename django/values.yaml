@@ -8,12 +8,10 @@ revisionHistoryLimit: 2
 image:
   repository: ghcr.io/sanoguzhan/django-helm-test
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
   containerPort: 8081
 
 command: 'gunicorn blog.wsgi -b 0.0.0.0:8081'
-
 
 # Django Deployment Settings
 # Init Container to collect static files
@@ -30,7 +28,7 @@ db_migrations:
   resources: {}
   safeToEvict: true
 
-#Django Static files and Media data folders
+# Django Static files and Media data folders
 # Set to path from working directory
 data:
   staticfiles: "app/staticfiles/"
@@ -48,31 +46,35 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-
-
 # Django Service Values
 service:
   type: ClusterIP
   port: 80
 
-#Caddy Settings ( Proxy Setup )
+# Caddy Settings (Proxy Setup)
 proxy:
   repository: caddy
   pullPolicy: IfNotPresent
-  tag: "2.1.1-alpine" 
+  tag: "2.1.1-alpine"
   containerPort: 8000
 
-
-# Env ConfigMap values 
+# Env ConfigMap values
 envConfigs:
- STATIC_ROOT: "staticfiles"
- CELERY_BROKER_URL: ""
+  STATIC_ROOT: "staticfiles"
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  DATABASE_URL: "postgres://sage:amphitheater@postgres:5430/amphitheater"
+  RABBITMQ_URL: "amphitheater:P@ssw0rd1@rabbitmq:5672/amphitheater"
+  AWS_SECRETS_MANAGER_KEY_ID: ""
+  AWS_SECRETS_MANAGER_SECRET_KEY: ""
+  AWS_SECRETS_MANAGER_REGION_NAME: ""
+  DJANGO_SUPERUSER_USERNAME: "admin"
+  DJANGO_SUPERUSER_PASSWORD: "admin_admin"
+  DJANGO_SUPERUSER_EMAIL: "sabin@gmail.com"
 
-# Enc Secret Values (Base64 encoded data)
+# Env Secret Values (Base64 encoded data)
 envSecrets: {}
 
-
-# Django Ingress Values 
+# Django Ingress Values
 ingress:
   enabled: true
   annotations: {}
@@ -82,34 +84,30 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
 
 celery:
-# Celery Beat Values
+  # Celery Beat Values
   beat:
     enabled: true
     componentName: celery-beat
     command: 'celery -A blog.celery beat -l DEBUG'
     replicaCount: 1
     strategy: Recreate
-# Celery Worker Settings  
+  # Celery Worker Settings
   worker:
     componentName: celery-worker
     command: 'celery -A blog.celery worker -l DEBUG'
     replicaCount: 1
     strategy: RollingUpdate
-# Celery Flower Settings
+  # Celery Flower Settings
   flower:
     componentName: celery-flower
     command: 'celery -A blog.celery flower'
     replicaCount: 1
-    strategy: RollingUpdate   
+    strategy: RollingUpdate
     service:
       type: ClusterIP
-      port: 
+      port:
         number: 5555
         name: flower
     ingress:
@@ -118,9 +116,9 @@ celery:
       hosts:
         - host: example.com
           paths:
-            - path: / 
+            - path: /
               pathType: Prefix
-      tls: []  
+      tls: []
 
 # Disable subchart by setting enabled value to false
 redis:
@@ -130,34 +128,23 @@ redis:
     podSecurityContext:
       enabled: true
       fsGroup: 1001
-
     containerSecurityContext:
       enabled: true
       runAsUser: 1001
-
   replica:
     podSecurityContext:
       enabled: true
       fsGroup: 1001
-
     containerSecurityContext:
       enabled: true
       runAsUser: 1001
-
   volumePermissions:
     enabled: true
     runAsUser: 1001
 
-
-
-
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: ""
 
 podAnnotations: {}
@@ -173,12 +160,8 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # Uncomment and adjust the following lines if you need resource limits and requests
   # limits:
   #   cpu: 100m
   #   memory: 128Mi
@@ -198,14 +181,3 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-
-
-  
-
-
-
-
-
-
-
-
