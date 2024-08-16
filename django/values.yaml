@@ -27,7 +27,22 @@ db_migrations:
   command: "python3 manage.py migrate --noinput"
   resources: {}
   safeToEvict: true
-
+makemigrations:
+  enabled: true
+  name: makemigrations
+  command: "python3 manage.py makemigrations"
+updatepermissions:
+  enabled: true
+  name: updatepermissions
+  command: "python3 manage.py update_permissions"
+superuser:
+  enabled: true
+  name: superuser
+  command: "python3 manage.py superuser"
+runmanagements:
+  enabled: true
+  name: runmanagements
+  command: "python3 manage.py run_managements"
 # Django Static files and Media data folders
 # Set to path from working directory
 data:

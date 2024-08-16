@@ -36,10 +36,120 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args:
-              - -c
-              - >-
-                  {{ .Values.collect_static.command }}
-          {{- if or .Values.envSecrets .Values.envConfigs }} 
+            - -c
+            - >-
+                {{ .Values.collect_static.command }}
+          {{- if or .Values.envSecrets .Values.envConfigs }}
+          envFrom:
+            {{- if .Values.envSecrets }}
+            - secretRef:
+                name: env-secrets
+            {{- end }}
+            {{- if .Values.envConfigs }}
+            - configMapRef:
+                name: env-configmap
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: shared
+              mountPath: {{ .Values.data.staticfiles }}
+        {{- end }}
+        {{- if .Values.db_migrations.enabled }}
+        - name: {{ .Values.db_migrations.name | quote }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - "{{ .Values.db_migrations.command }}"
+          {{- if or .Values.envSecrets .Values.envConfigs }}
+          envFrom:
+            {{- if .Values.envSecrets }}
+            - secretRef:
+                name: env-secrets
+            {{- end }}
+            {{- if .Values.envConfigs }}
+            - configMapRef:
+                name: env-configmap
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: shared
+              mountPath: {{ .Values.data.staticfiles }}
+        {{- end }}
+        {{- if .Values.makemigrations.enabled }}
+        - name: {{ .Values.makemigrations.name | quote }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - "{{ .Values.makemigrations.command }}"
+          {{- if or .Values.envSecrets .Values.envConfigs }}
+          envFrom:
+            {{- if .Values.envSecrets }}
+            - secretRef:
+                name: env-secrets
+            {{- end }}
+            {{- if .Values.envConfigs }}
+            - configMapRef:
+                name: env-configmap
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: shared
+              mountPath: {{ .Values.data.staticfiles }}
+        {{- end }}
+        {{- if .Values.updatepermissions.enabled }}
+        - name: {{ .Values.updatepermissions.name | quote }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - "{{ .Values.updatepermissions.command }}"
+          {{- if or .Values.envSecrets .Values.envConfigs }}
+          envFrom:
+            {{- if .Values.envSecrets }}
+            - secretRef:
+                name: env-secrets
+            {{- end }}
+            {{- if .Values.envConfigs }}
+            - configMapRef:
+                name: env-configmap
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: shared
+              mountPath: {{ .Values.data.staticfiles }}
+        {{- end }}
+        {{- if .Values.superuser.enabled }}
+        - name: {{ .Values.superuser.name | quote }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - "{{ .Values.superuser.command }}"
+          {{- if or .Values.envSecrets .Values.envConfigs }}
+          envFrom:
+            {{- if .Values.envSecrets }}
+            - secretRef:
+                name: env-secrets
+            {{- end }}
+            {{- if .Values.envConfigs }}
+            - configMapRef:
+                name: env-configmap
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: shared
+              mountPath: {{ .Values.data.staticfiles }}
+        {{- end }}
+        {{- if .Values.runmanagements.enabled }}
+        - name: {{ .Values.runmanagements.name | quote }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - "{{ .Values.runmanagements.command }}"
+          {{- if or .Values.envSecrets .Values.envConfigs }}
           envFrom:
             {{- if .Values.envSecrets }}
             - secretRef:
@@ -62,9 +172,9 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args:
-              - -c
-              - >-
-                  {{ .Values.command }}
+            - -c
+            - >-
+                {{ .Values.command }}
           env:
             - name: CELERY_BROKER_URL
               value: "{{ .Values.envConfigs.CELERY_BROKER_URL }}"
@@ -87,24 +197,13 @@ spec:
           ports:
             - containerPort: {{ .Values.image.containerPort }}
               protocol: TCP
-        {{- with .Values.probes }}
-          {{- if .liveness.enabled }}
-          livenessProbe:
-            httpGet:
-              path: {{ .liveness.path }}
-              port: {{ $.Values.image.containerPort }}
-          {{- end }}
-          {{- if .readiness.enabled }}
-          readinessProbe:
-            httpGet:
-              path: {{ .readiness.path }}
-              port: {{ $.Values.image.containerPort }}
-          {{- end }}
-        {{- end }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: shared
+              mountPath: /srv/{{ .Values.data.staticfiles }}
+            - name: shared
+              mountPath: /srv/{{ .Values.data.data_media }}
         - name: {{ printf "%s-%s" .Chart.Name "proxy" }}
-          image:  "{{ .Values.proxy.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.proxy.repository }}:{{ .Values.image.tag }}"
           ports:
             - name: http
               containerPort: {{ .Values.proxy.containerPort }}
