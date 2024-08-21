@@ -30,170 +30,58 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
-        {{- if .Values.collect_static.enabled }}
-        - name: {{ .Values.collect_static.name | quote }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh"]
-          args:
-            - -c
-            - >-
-                {{ .Values.collect_static.command }}
-          {{- if or .Values.envSecrets .Values.envConfigs }}
-          envFrom:
-            {{- if .Values.envSecrets }}
-            - secretRef:
-                name: env-secrets
+        - name: init-makemigrations
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+          command: ["sh", "-c", "./start.sh makemigrations"]
+          env:
+            {{- range $key, $value := .Values.envConfigs }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
             {{- end }}
-            {{- if .Values.envConfigs }}
-            - configMapRef:
-                name: env-configmap
+        - name: init-migrate
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+          command: ["sh", "-c", "./start.sh migrate"]
+          env:
+            {{- range $key, $value := .Values.envConfigs }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
             {{- end }}
-          {{- end }}
-          volumeMounts:
-            - name: shared
-              mountPath: {{ .Values.data.staticfiles }}
-        {{- end }}
-        {{- if .Values.db_migrations.enabled }}
-        - name: {{ .Values.db_migrations.name | quote }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
-          args:
-            - "{{ .Values.db_migrations.command }}"
-          {{- if or .Values.envSecrets .Values.envConfigs }}
-          envFrom:
-            {{- if .Values.envSecrets }}
-            - secretRef:
-                name: env-secrets
+        - name: init-update-permissions
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+          command: ["sh", "-c", "./start.sh update_permissions"]
+          env:
+            {{- range $key, $value := .Values.envConfigs }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
             {{- end }}
-            {{- if .Values.envConfigs }}
-            - configMapRef:
-                name: env-configmap
+        - name: init-run-managements
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+          command: ["sh", "-c", "./start.sh run_managements"]
+          env:
+            {{- range $key, $value := .Values.envConfigs }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
             {{- end }}
-          {{- end }}
-          volumeMounts:
-            - name: shared
-              mountPath: {{ .Values.data.staticfiles }}
-        {{- end }}
-        {{- if .Values.makemigrations.enabled }}
-        - name: {{ .Values.makemigrations.name | quote }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
-          args:
-            - "{{ .Values.makemigrations.command }}"
-          {{- if or .Values.envSecrets .Values.envConfigs }}
-          envFrom:
-            {{- if .Values.envSecrets }}
-            - secretRef:
-                name: env-secrets
+        - name: init-superuser
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+          command: ["sh", "-c", "./start.sh createsuperuser"]
+          env:
+            {{- range $key, $value := .Values.envConfigs }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
             {{- end }}
-            {{- if .Values.envConfigs }}
-            - configMapRef:
-                name: env-configmap
-            {{- end }}
-          {{- end }}
-          volumeMounts:
-            - name: shared
-              mountPath: {{ .Values.data.staticfiles }}
-        {{- end }}
-        {{- if .Values.updatepermissions.enabled }}
-        - name: {{ .Values.updatepermissions.name | quote }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
-          args:
-            - "{{ .Values.updatepermissions.command }}"
-          {{- if or .Values.envSecrets .Values.envConfigs }}
-          envFrom:
-            {{- if .Values.envSecrets }}
-            - secretRef:
-                name: env-secrets
-            {{- end }}
-            {{- if .Values.envConfigs }}
-            - configMapRef:
-                name: env-configmap
-            {{- end }}
-          {{- end }}
-          volumeMounts:
-            - name: shared
-              mountPath: {{ .Values.data.staticfiles }}
-        {{- end }}
-        {{- if .Values.superuser.enabled }}
-        - name: {{ .Values.superuser.name | quote }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
-          args:
-            - "{{ .Values.superuser.command }}"
-          {{- if or .Values.envSecrets .Values.envConfigs }}
-          envFrom:
-            {{- if .Values.envSecrets }}
-            - secretRef:
-                name: env-secrets
-            {{- end }}
-            {{- if .Values.envConfigs }}
-            - configMapRef:
-                name: env-configmap
-            {{- end }}
-          {{- end }}
-          volumeMounts:
-            - name: shared
-              mountPath: {{ .Values.data.staticfiles }}
-        {{- end }}
-        {{- if .Values.runmanagements.enabled }}
-        - name: {{ .Values.runmanagements.name | quote }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
-          args:
-            - "{{ .Values.runmanagements.command }}"
-          {{- if or .Values.envSecrets .Values.envConfigs }}
-          envFrom:
-            {{- if .Values.envSecrets }}
-            - secretRef:
-                name: env-secrets
-            {{- end }}
-            {{- if .Values.envConfigs }}
-            - configMapRef:
-                name: env-configmap
-            {{- end }}
-          {{- end }}
-          volumeMounts:
-            - name: shared
-              mountPath: {{ .Values.data.staticfiles }}
-        {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh"]
-          args:
-            - -c
-            - >-
-                {{ .Values.command }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c", "{{ .Values.command }}"]
           env:
-            - name: CELERY_BROKER_URL
-              value: "{{ .Values.envConfigs.CELERY_BROKER_URL }}"
-            - name: DATABASE_URL
-              value: "{{ .Values.envConfigs.DATABASE_URL }}"
-            - name: RABBITMQ_URL
-              value: "{{ .Values.envConfigs.RABBITMQ_URL }}"
-            - name: AWS_SECRETS_MANAGER_KEY_ID
-              value: "{{ .Values.envConfigs.AWS_SECRETS_MANAGER_KEY_ID }}"
-            - name: AWS_SECRETS_MANAGER_SECRET_KEY
-              value: "{{ .Values.envConfigs.AWS_SECRETS_MANAGER_SECRET_KEY }}"
-            - name: AWS_SECRETS_MANAGER_REGION_NAME
-              value: "{{ .Values.envConfigs.AWS_SECRETS_MANAGER_REGION_NAME }}"
-            - name: DJANGO_SUPERUSER_USERNAME
-              value: "{{ .Values.envConfigs.DJANGO_SUPERUSER_USERNAME }}"
-            - name: DJANGO_SUPERUSER_PASSWORD
-              value: "{{ .Values.envConfigs.DJANGO_SUPERUSER_PASSWORD }}"
-            - name: DJANGO_SUPERUSER_EMAIL
-              value: "{{ .Values.envConfigs.DJANGO_SUPERUSER_EMAIL }}"
+            {{- range $key, $value := .Values.envConfigs }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
           ports:
             - containerPort: {{ .Values.image.containerPort }}
               protocol: TCP
@@ -202,29 +90,12 @@ spec:
               mountPath: /srv/{{ .Values.data.staticfiles }}
             - name: shared
               mountPath: /srv/{{ .Values.data.data_media }}
-        - name: {{ printf "%s-%s" .Chart.Name "proxy" }}
-          image: "{{ .Values.proxy.repository }}:{{ .Values.image.tag }}"
-          ports:
-            - name: http
-              containerPort: {{ .Values.proxy.containerPort }}
-              protocol: TCP
-          volumeMounts:
-            - name: caddy-config
-              mountPath: /etc/caddy/Caddyfile
-              subPath: Caddyfile
-            - name: shared
-              mountPath: /srv/{{ .Values.data.staticfiles }}
-            - name: shared
-              mountPath: /srv/{{ .Values.data.data_media }}
       volumes:
-        - name: caddy-config
-          configMap:
-            name: caddy-config
         - name: shared
           emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
       {{- end }}
       {{- with .Values.affinity }}
       affinity:

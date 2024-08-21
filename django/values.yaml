@@ -6,13 +6,15 @@
 replicaCount: 1
 revisionHistoryLimit: 2
 image:
-  repository: ghcr.io/sanoguzhan/django-helm-test
+  repository: bikashkhalti/sageflick
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: "sage"
   containerPort: 8081
 
-command: 'gunicorn blog.wsgi -b 0.0.0.0:8081'
-
+command: >
+  python manage.py runserver 0.0.0.0:20001
+imagePullSecrets:
+  - name: regcred
 # Django Deployment Settings
 # Init Container to collect static files
 collect_static:
@@ -22,27 +24,36 @@ collect_static:
 
 # Job to run database migrations
 db_migrations:
-  enabled: true
+  enabled: false
   name: db-migration
   command: "python3 manage.py migrate --noinput"
   resources: {}
   safeToEvict: true
-makemigrations:
-  enabled: true
-  name: makemigrations
-  command: "python3 manage.py makemigrations"
-updatepermissions:
-  enabled: true
-  name: updatepermissions
-  command: "python3 manage.py update_permissions"
-superuser:
-  enabled: true
-  name: superuser
-  command: "python3 manage.py superuser"
-runmanagements:
-  enabled: true
-  name: runmanagements
-  command: "python3 manage.py run_managements"
+initContainer:
+  script: |
+    #!/bin/sh
+
+    # Run migrations
+    python manage.py makemigrations --noinput
+    python manage.py migrate --noinput
+
+    # Update permissions
+    python manage.py load_builtin_roles
+    python manage.py update_permissions
+
+    # Run management commands
+    python manage.py load_builtin_scopes
+    python manage.py loadbase_config
+
+    # Create a superuser
+    DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME} \
+    DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD} \
+    DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL} \
+    python manage.py createsuperuser --noinput
+
+    # Collect static files
+    python manage.py collectstatic --noinput
+    
 # Django Static files and Media data folders
 # Set to path from working directory
 data:
@@ -57,14 +68,13 @@ probes:
     enabled: true
     path: /ready
 
-imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
 # Django Service Values
 service:
   type: ClusterIP
-  port: 80
+  port: 20001
 
 # Caddy Settings (Proxy Setup)
 proxy:
@@ -75,10 +85,25 @@ proxy:
 
 # Env ConfigMap values
 envConfigs:
+  PROJECT_NAME: "amphitheater"
+  DJANGO_SUPERUSER_USERNAME: "admin"
+  DJANGO_SUPERUSER_PASSWORD: "admin_admin"
+  DJANGO_SUPERUSER_EMAIL: "bikash.bhandari@khalti.com"
+  DB_USER: "sage"
+  DB_PASSWORD: "amphitheater"
+  DB_NAME: "amphitheater"
+  DB_PORT: "5430"
+  PROJECT_NAME: "192.168.70.46"
+  CELERY_BROKER_URL: "redis://192.168.70.46:6379"
+  DATABASE_URL: "postgres://sage:amphitheater@192.168.70.46:5430/amphitheater"
+  RABBITMQ_URL: "amphitheater:P@ssw0rd1@192.168.70.46:5672/amphitheater"
+  AWS_SECRETS_MANAGER_KEY_ID: ""
+  AWS_SECRETS_MANAGER_SECRET_KEY: ""
+  AWS_SECRETS_MANAGER_REGION_NAME: ""
   STATIC_ROOT: "staticfiles"
-  CELERY_BROKER_URL: "redis://redis:6379/0"
-  DATABASE_URL: "postgres://sage:amphitheater@postgres:5430/amphitheater"
-  RABBITMQ_URL: "amphitheater:P@ssw0rd1@rabbitmq:5672/amphitheater"
+  CELERY_BROKER_URL: "redis://192.168.70.46:6379"
+  DATABASE_URL: "postgres://sage:amphitheater@192.168.70.46:5430/amphitheater"
+  RABBITMQ_URL: "amphitheater:P@ssw0rd1@192.168.70.46:5672/amphitheater"
   AWS_SECRETS_MANAGER_KEY_ID: ""
   AWS_SECRETS_MANAGER_SECRET_KEY: ""
   AWS_SECRETS_MANAGER_REGION_NAME: ""
@@ -103,7 +128,7 @@ ingress:
 celery:
   # Celery Beat Values
   beat:
-    enabled: true
+    enabled: flase
     componentName: celery-beat
     command: 'celery -A blog.celery beat -l DEBUG'
     replicaCount: 1
@@ -111,20 +136,10 @@ celery:
   # Celery Worker Settings
   worker:
     componentName: celery-worker
-    command: 'celery -A blog.celery worker -l DEBUG'
+    command: 'celery -A amphitheater worker --loglevel=info'
     replicaCount: 1
     strategy: RollingUpdate
   # Celery Flower Settings
-  flower:
-    componentName: celery-flower
-    command: 'celery -A blog.celery flower'
-    replicaCount: 1
-    strategy: RollingUpdate
-    service:
-      type: ClusterIP
-      port:
-        number: 5555
-        name: flower
     ingress:
       enabled: false
       annotations: {}
